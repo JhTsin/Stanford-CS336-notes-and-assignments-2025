@@ -95,14 +95,14 @@ class RotaryPositionalEmbedding(nn.Module):
         
         # Pre-compute the cos and sin values for all positions
         # shape: (max_seq_len, d_k/2)
-        position = torch.arange(max_seq_len, device=device).unsqueeze(1)
+        position = torch.arange(max_seq_len, device=device).unsqueeze(1)    # --> max_seq_len x 1
         div_term = torch.exp(
             torch.arange(0, d_k, 2, device=device).float() * -(math.log(theta) / d_k)
-        )
+        )   #we can reuse log(theta) for all positions, exp(log) to prevent numerical issues
         
         # Compute frequency * position for all positions and freq pairs
         # This gives us the angles for the rotations
-        freqs = position * div_term
+        freqs = position * div_term #--> (max_seq_len, d_k/2) broadcast multiply
         
         # Pre-compute cos and sin values, shape: (max_seq_len, d_k/2)
         cos = torch.cos(freqs)
@@ -138,11 +138,17 @@ class RotaryPositionalEmbedding(nn.Module):
         # First, we need to ensure token_positions are valid indices
         valid_positions = torch.clamp(token_positions, 0, self.max_seq_len - 1)
         
+        #此处与测试用例冲突，用例没有batch维度，因此判断并对齐张量
+        # If token_positions doesn't have batch dimension, expand it to (1, seq_len)
+        if valid_positions.dim() == 1:
+            valid_positions = valid_positions.unsqueeze(0)  # (seq_len,) -> (1, seq_len)
+        
         # Select the right cos/sin values for these positions
         # Expand cos/sin to match the batch dimensions of x
-        cos = self.cos[valid_positions]  # shape: (batch_size, seq_len, d_k/2)
+
+        cos = self.cos[valid_positions]  # shape: (batch_size, seq_len, d_k/2) #高级索引，按照valid_positions取行
         sin = self.sin[valid_positions]  # shape: (batch_size, seq_len, d_k/2)
-        
+
         # Add head dimension for broadcasting
         cos = cos.unsqueeze(1)  # shape: (batch_size, 1, seq_len, d_k/2)
         sin = sin.unsqueeze(1)  # shape: (batch_size, 1, seq_len, d_k/2)
@@ -150,12 +156,12 @@ class RotaryPositionalEmbedding(nn.Module):
         # Extract even and odd dimensions
         x_even = x[..., 0]  # shape: (batch_size, num_heads, seq_len, d_k/2)
         x_odd = x[..., 1]   # shape: (batch_size, num_heads, seq_len, d_k/2)
-        
-        # Apply the rotation: 
+
+        # Apply the rotation:  对每一个2维向量 [x_even, x_odd] 进行旋转，然后多组堆叠
         # [cos -sin] [x_even]
         # [sin  cos] [x_odd ]
-        x_rotated = torch.stack([
-            x_even * cos - x_odd * sin,
+        x_rotated = torch.stack([       
+            x_even * cos - x_odd * sin, #element-wise operations, broadcasting cos/sin 1-> num_heads
             x_even * sin + x_odd * cos
         ], dim=-1)
         
