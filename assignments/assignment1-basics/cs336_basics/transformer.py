@@ -77,9 +77,9 @@ class MultiHeadSelfAttention(nn.Module):
         # shape: (seq_len, seq_len)
         causal_mask = torch.triu(
             torch.ones(seq_len, seq_len, device=x.device, dtype=torch.bool),
-            diagonal=1
+            diagonal=1  #exclude main diagonal
         )
-        causal_mask = ~causal_mask  # True means attend, False means mask out
+        causal_mask = ~causal_mask  # True means attend, False means mask out，lower triangular
         
         # Expand mask for broadcasting with attention scores
         # shape: (1, 1, seq_len, seq_len) - will broadcast to batch and head dimensions
@@ -130,7 +130,7 @@ class TransformerBlock(nn.Module):
         self.attn = MultiHeadSelfAttention(d_model, num_heads, device=device, dtype=dtype)
         
         # Position-wise feed-forward network (SwiGLU)
-        self.ffn = SwiGLU(d_model, d_ff, device=device, dtype=dtype)
+        self.ffn = SwiGLU(d_model, d_ff, device=device, dtype=dtype) # Using SwiGLU as the feed-forward network
         
         # RoPE for positional encoding
         head_dim = d_model // num_heads
@@ -156,7 +156,7 @@ class TransformerBlock(nn.Module):
         if token_positions is None:
             seq_len = x.size(1)
             # Create positions tensor with shape (batch_size, seq_len)
-            token_positions = torch.arange(seq_len, device=x.device).expand(x.size(0), -1)
+            token_positions = torch.arange(seq_len, device=x.device).expand(x.size(0), -1)#repeat batch size times
             
         # First sub-layer: Multi-head self-attention with pre-norm
         x_norm = self.ln1(x)
@@ -259,7 +259,7 @@ class TransformerLM(nn.Module):
         
         # Generate positions tensor for RoPE
         positions = torch.arange(0, seq_len, device=device).unsqueeze(0).expand(batch_size, -1)
-        
+        #.expand(batch_size, -1) repeat for batch size and keep -1 dimension unchanged
         # Pass through each transformer block
         for layer in self.layers:
             x = layer(x, token_positions=positions)
@@ -269,5 +269,5 @@ class TransformerLM(nn.Module):
         
         # Predict next token with lm_head
         logits = self.lm_head(x)  # (batch_size, seq_len, vocab_size)
-        
+        # not applying softmax here, as it's usually combined with CrossEntropyLoss which does that internally
         return logits
