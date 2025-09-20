@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+# hfd - HuggingFace高速下载器
+# 用法: hfd <repo/文件路径> [选项]
+# 选项:
+#   -x NUM    并发连接数 (默认: 16)
+#   -j NUM    并行任务数 (默认: 3)
+#   -o PATH   输出路径 (默认: 当前目录)
+#   -m URL    镜像URL (默认: hf-mirror.com)
+
+# 默认设置
+CONNECTIONS=16
+PARALLEL_JOBS=3
+OUTPUT_DIR="."
+MIRROR="hf-mirror.com"
+
+# 解析参数
+REPO_PATH=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -x)
+      CONNECTIONS="$2"
+      shift 2
+      ;;
+    -j)
+      PARALLEL_JOBS="$2"
+      shift 2
+      ;;
+    -o)
+      OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    -m)
+      MIRROR="$2"
+      shift 2
+      ;;
+    *)
+      if [[ -z "$REPO_PATH" ]]; then
+        REPO_PATH="$1"
+      else
+        echo "未知选项: $1"
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+# 检查必要参数
+if [[ -z "$REPO_PATH" ]]; then
+  echo "错误: 未指定仓库/文件路径"
+  echo "用法: hfd <repo/文件路径> [选项]"
+  exit 1
+fi
+
+# 检查aria2c是否安装
+if ! command -v aria2c &> /dev/null; then
+  echo "错误: 需要aria2c来进行多线程下载"
+  echo "请安装: sudo apt-get install aria2"
+  exit 1
+fi
+
+# 构建下载URL和文件名
+download() {
+  local repo_path="$1"
+  local output_dir="$2"
+  local filename=$(basename "$repo_path")
+  local url="https://${MIRROR}/${repo_path}"
+  
+  echo "开始下载: $url"
+  echo "保存到: ${output_dir}/${filename}"
+  
+  aria2c -x"$CONNECTIONS" -s"$CONNECTIONS" -j"$PARALLEL_JOBS" \
+         --file-allocation=none --check-certificate=false \
+         -d "$output_dir" -o "$filename" "$url"
+         
+  echo "下载完成: ${filename}"
+  
+  # 如果是.gz文件，自动解压
+  if [[ "$filename" == *.gz ]]; then
+    echo "解压文件: ${filename}"
+    gunzip -f "${output_dir}/${filename}"
+  fi
+}
+
+# 执行下载
+download "$REPO_PATH" "$OUTPUT_DIR"
