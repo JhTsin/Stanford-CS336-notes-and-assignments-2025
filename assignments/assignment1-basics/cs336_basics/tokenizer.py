@@ -74,7 +74,8 @@ class BPETokenizer:
         byte_decoder = unicode_to_bytes()
         vocab = {}
         for token_str, token_id in str_vocab.items():
-            token_bytes = bytes([byte_decoder.get(c, ord(c)) for c in token_str])
+            token_bytes = bytes([byte_decoder.get(c, ord(c)) for c in token_str]) 
+            # ————————————————————————解码256以内的字符c，溢出使用ord(c)处理未映射字符
             vocab[token_id] = token_bytes
         
         # Load merges
@@ -115,7 +116,7 @@ class BPETokenizer:
             # Find the highest-ranked pair
             min_rank = float('inf')
             min_pair_idx = -1
-            
+            # 查找所有相邻对中排名优先级最高的，记录索引
             for i in range(len(parts) - 1):
                 pair = (parts[i], parts[i + 1])
                 if pair in self.bpe_ranks:
@@ -129,6 +130,7 @@ class BPETokenizer:
                 break
             
             # Otherwise, merge the pair
+            # 索引前后不需要动，索引处合并
             parts = (
                 parts[:min_pair_idx] + 
                 [parts[min_pair_idx] + parts[min_pair_idx + 1]] + 
@@ -147,7 +149,7 @@ class BPETokenizer:
         Returns:
             A list of token IDs
         """
-        # Handle special tokens separately
+        # Handle special tokens separately，特殊词单独为一块，与其余内容拼接起来
         if self.special_token_pattern:
             parts = []
             last_end = 0

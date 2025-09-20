@@ -245,8 +245,9 @@ def find_chunk_boundaries(
             # If the token is not found, we continue reading the next mini chunk
             # This will continue until we either find the token or reach the end of the file.
             else:
-                # Update the initial position to the end of the mini chunk
-                initial_position += len(mini_chunk)
+                # Update the current position to the end of the mini chunk 
+                # fix bug from init to current pos
+                current_position += len(mini_chunk)
     
     # Convert the list to a set to remove duplicate positions
     # which can happen if multiple initial guess lead to the same token
@@ -436,6 +437,7 @@ def merge_byte_pairs(
             # Note: This calculation needs the *final* state of new_byte_list_tokens for this pretoken.
             for pair in zip(new_byte_list_tokens[:-1], new_byte_list_tokens[1:]):
                 deltas[pair] += freq
+            #————————————————原来的token list中所有都减少频数 新的list中所有都增加频数，这样总体原来的词汇减少 新的词汇增加 其余不变
 
             # Update the pretoken_freq dictionary with the new byte list for this pretoken.
             # The key remains the original pretoken bytes, but the value's list is updated.
@@ -457,7 +459,7 @@ def merge_byte_pairs(
     # and clearly indicates this pair is no longer available for merging.
     if best_pair in byte_pairs_freq:
         del byte_pairs_freq[best_pair]
-
+    # 合并了的就不会再有频率了
     
     
 if __name__ == "__main__":

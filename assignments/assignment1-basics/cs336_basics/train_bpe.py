@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 import multiprocessing as mp
 
-from cs336_basics.token_utils import find_chunk_boundaries, process_chunk,get_pair_stats, \
+from cs336_basics.token_utils import find_chunk_boundaries, process_chunk, get_pair_stats, \
                                merge_byte_pairs
 import cProfile
 
@@ -33,7 +33,7 @@ class TrainBPE:
                  input_path: str | os.PathLike,
                  vocab_size: int,
                  special_tokens: List[str],
-                 verbose: bool = False):
+                 verbose: bool = False): # verbose whether to print detailed training info
         """
         Initializes the BPE tokenizer with a specified vocabulary size and special tokens.
 
@@ -56,7 +56,7 @@ class TrainBPE:
         
         # Read the input file in binary mode
         if self.input_path != "":
-            with open(input_path, "rb") as f:
+            with open(input_path, "rb") as f: # binary mode to read bytes to enhance langugage generalization
                 self.file_object = f.read() 
 
         # Make sure text file is not empty
@@ -112,7 +112,7 @@ class TrainBPE:
         # and the overhead of multiprocessing is negligible
         # compared to the time it takes to read the file
         # and process the chunks
-        num_chunks = mp.cpu_count() - 1
+        num_chunks = mp.cpu_count() - 1 # need 1 core for the main process
         
         print("--- Step 1: Find the chunk boundaries ---")
         
@@ -214,7 +214,7 @@ class TrainBPE:
 
         # Populate the pretoken_freq dictionary with the results
         for pretoken, freq in aggregated_freq.items():
-            # Convert the byte objects into a list
+            # Convert the byte objects into a list --> byte by byte
             byte_list = [bytes([i]) for i in pretoken]
             # Store the frequency of the pretoken
             pretoken_freq[pretoken] = (byte_list, freq)
@@ -321,7 +321,7 @@ def bytes_to_unicode():
     Returns a dictionary mapping byte values (0-255) to unicode strings.
     This is used to ensure a reversible mapping between bytes and unicode for BPE.
     """
-    bs = list(range(33, 127)) + list(range(161, 173)) + list(range(174, 256))
+    bs = list(range(33, 127)) + list(range(161, 173)) + list(range(174, 256))   # printable characters in ASCII and Latin-1
     cs = bs[:]
     n = 0
     for b in range(256):
